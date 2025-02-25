@@ -1,76 +1,65 @@
-import streamlit as st
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.preprocessing import StandardScaler
-
-# Configurar la página
-st.set_page_config(page_title="Análisis de Datos K-Means", layout="wide")
+from tabulate import tabulate
 
 # Cargar el dataset
-file_path = "/Users/santiagobarrera/PycharmProjects/PythonProject1/dataset_kmeans_19022025.csv"
+file_path = "dataset_kmeans_19022025.csv"
 df = pd.read_csv(file_path, sep=';')
 
-# Título principal
-st.title("📊 Análisis de Datos para K-Means")
+# Información del dataset
+df_info = df.info()
+df_head = df.head()
+df_description = df.describe()
+df_nulls = df.isnull().sum()
 
-# Mostrar dataset inicial
-st.subheader("📂 Dataset Original")
-st.dataframe(df.head(11))
+# Mostrar los primeros datos
+print("\n🔍 **Primeras 11 Filas del Dataset:**")
+print(tabulate(df.head(11), headers='keys', tablefmt='fancy_grid'))
 
-# Mostrar estadísticas descriptivas
-st.subheader("📈 Estadísticas Descriptivas")
-st.write(df.describe())
+print("\n📊 **Estadísticas Descriptivas:**")
+print(tabulate(df_description, headers='keys', tablefmt='fancy_grid'))
 
 # Función para detectar outliers usando IQR
 def detectar_outliers_iqr(df, columna):
     Q1 = df[columna].quantile(0.25)
     Q3 = df[columna].quantile(0.75)
     IQR = Q3 - Q1
+
     limite_inferior = Q1 - 1.5 * IQR
     limite_superior = Q3 + 1.5 * IQR
+
     outliers = df[(df[columna] < limite_inferior) | (df[columna] > limite_superior)]
     return outliers
 
-# Detectar valores atípicos
+# Identificar valores atípicos
 outliers_edad = detectar_outliers_iqr(df, "Edad")
 outliers_gasto = detectar_outliers_iqr(df, "Gasto Mensual (USD)")
 outliers_compras = detectar_outliers_iqr(df, "Compras Mensuales")
 
-# Mostrar valores atípicos
-st.subheader("⚠️ Valores Atípicos Detectados")
 outliers_count = {
-    "Edad": outliers_edad.shape[0],
-    "Gasto Mensual (USD)": outliers_gasto.shape[0],
-    "Compras Mensuales": outliers_compras.shape[0],
+    "Valores Atípicos en Edad": outliers_edad.shape[0],
+    "Valores Atípicos en Gasto Mensual": outliers_gasto.shape[0],
+    "Valores Atípicos en Compras Mensuales": outliers_compras.shape[0],
 }
-st.write(outliers_count)
 
-# Visualización de outliers
-st.subheader("📌 Boxplots para Identificación de Outliers")
-fig, ax = plt.subplots(1, 3, figsize=(15, 5))
-sns.boxplot(y=df["Edad"], ax=ax[0], color="lightblue")
-ax[0].set_title("Edad")
-
-sns.boxplot(y=df["Gasto Mensual (USD)"], ax=ax[1], color="lightgreen")
-ax[1].set_title("Gasto Mensual (USD)")
-
-sns.boxplot(y=df["Compras Mensuales"], ax=ax[2], color="lightcoral")
-ax[2].set_title("Compras Mensuales")
-
-st.pyplot(fig)
+print("\n⚠️ **Valores Atípicos Detectados:**")
+print(tabulate(outliers_count.items(), headers=["Categoría", "Cantidad"], tablefmt="fancy_grid"))
 
 # Calcular correlaciones
-st.subheader("🔗 Correlaciones entre Variables")
-correlaciones = df[["Edad", "Gasto Mensual (USD)", "Compras Mensuales"]].corr()
-st.write(correlaciones)
+correlacion_edad_compras = df["Edad"].corr(df["Compras Mensuales"])
+correlacion_gasto_compras = df["Gasto Mensual (USD)"].corr(df["Compras Mensuales"])
+correlacion_edad_gasto = df["Edad"].corr(df["Gasto Mensual (USD)"])
 
-# Mapa de calor de correlaciones
-st.subheader("🌡️ Heatmap de Correlaciones")
-fig, ax = plt.subplots(figsize=(8, 5))
-sns.heatmap(correlaciones, annot=True, cmap="coolwarm", linewidths=0.5, ax=ax)
-st.pyplot(fig)
+print("\n📈 **Coeficientes de Correlación:**")
+correlaciones = [
+    ["Edad vs Compras Mensuales", correlacion_edad_compras],
+    ["Gasto Mensual vs Compras Mensuales", correlacion_gasto_compras],
+    ["Edad vs Gasto Mensual", correlacion_edad_gasto],
+]
+print(tabulate(correlaciones, headers=["Relación", "Coeficiente"], tablefmt="fancy_grid"))
 
 # Limpiar datos eliminando duplicados
 df_cleaned = df.drop_duplicates()
@@ -78,23 +67,10 @@ df_cleaned = df.drop_duplicates()
 # Normalizar los datos para K-Means
 scaler = StandardScaler()
 X_scaled = scaler.fit_transform(df_cleaned[["Edad", "Gasto Mensual (USD)", "Compras Mensuales"]])
+
+# Convertir a DataFrame después de la normalización
 df_scaled = pd.DataFrame(X_scaled, columns=["Edad", "Gasto Mensual (USD)", "Compras Mensuales"])
 
-# Mostrar dataset limpio y normalizado
-st.subheader("✅ Dataset Limpio y Normalizado")
-st.dataframe(df_scaled.head())
-
-# Gráficos de distribución de variables normalizadas
-st.subheader("📊 Distribución de Variables Normalizadas")
-fig, ax = plt.subplots(1, 3, figsize=(15, 5))
-
-sns.histplot(df_scaled["Edad"], bins=30, kde=True, ax=ax[0], color="lightblue")
-ax[0].set_title("Distribución de Edad (Normalizada)")
-
-sns.histplot(df_scaled["Gasto Mensual (USD)"], bins=30, kde=True, ax=ax[1], color="lightgreen")
-ax[1].set_title("Distribución de Gasto Mensual (Normalizada)")
-
-sns.histplot(df_scaled["Compras Mensuales"], bins=30, kde=True, ax=ax[2], color="lightcoral")
-ax[2].set_title("Distribución de Compras Mensuales (Normalizada)")
-
-st.pyplot(fig)
+# Mostrar el nuevo dataset limpio y normalizado de forma visual
+print("\n✅ **Dataset Limpio y Normalizado:**")
+print(tabulate(df_scaled.head(), headers='keys', tablefmt='fancy_grid'))
